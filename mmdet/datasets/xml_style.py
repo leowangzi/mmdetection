@@ -17,14 +17,23 @@ class XMLDataset(CustomDataset):
         self.min_size = min_size
 
     def load_annotations(self, ann_file):
+        # print(ann_file)
         img_infos = []
         img_ids = mmcv.list_from_file(ann_file)
+        #print(len(img_ids))
         for img_id in img_ids:
             filename = 'JPEGImages/{}.jpg'.format(img_id)
+            #print(filename)
             xml_path = osp.join(self.img_prefix, 'Annotations',
                                 '{}.xml'.format(img_id))
+            #print(xml_path)
             tree = ET.parse(xml_path)
             root = tree.getroot()
+            ###
+            #if len(root.findall('object')) == 0:
+            #    print(filename)
+            #    continue
+            ###
             size = root.find('size')
             width = int(size.find('width').text)
             height = int(size.find('height').text)
