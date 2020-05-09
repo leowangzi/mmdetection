@@ -7,6 +7,7 @@ from terminaltables import AsciiTable
 from mmdet.utils import print_log
 from .bbox_overlaps import bbox_overlaps
 from .class_names import get_classes
+from .com_data import drop_duplicate_box
 
 
 def average_precision(recalls, precisions, mode='area'):
@@ -263,6 +264,56 @@ def get_cls_results(det_results, annotations, class_id):
     return cls_dets, cls_gts, cls_gts_ignore
 
 
+def eval_map_tpfp(det_results, annotations, scale_ranges=None, iou_thr=0.5, dataset=None, nproc=4):
+    
+    assert len(det_results) == len(annotations)
+
+    num_imgs = len(det_results)
+    num_scales = len(scale_ranges) if scale_ranges is not None else 1
+    num_classes = len(det_results[0])  # positive class num
+    area_ranges = ([(rg[0]**2, rg[1]**2) for rg in scale_ranges]
+                   if scale_ranges is not None else None)
+
+    pool = Pool(nproc)
+    eval_results = []
+    for i in range(num_classes):
+        # get gt and det bboxes of this class
+        cls_dets, cls_gts, cls_gts_ignore = get_cls_results(
+            det_results, annotations, i)
+        # choose proper function according to datasets to compute tp and fp
+        if dataset in ['det', 'vid']:
+            tpfp_func = tpfp_imagenet
+        else:
+            tpfp_func = tpfp_default
+        # compute tp and fp for each image with multiple processes
+        tpfp = pool.starmap(
+            tpfp_func,
+            zip(cls_dets, cls_gts, cls_gts_ignore,
+                [iou_thr for _ in range(num_imgs)],
+                [area_ranges for _ in range(num_imgs)]))
+        tp, fp = tuple(zip(*tpfp))
+        # calculate gt number of each scale
+        # ignored gts or gts beyond the specific scale are not counted
+        num_gts = np.zeros(num_scales, dtype=int)
+        for j, bbox in enumerate(cls_gts):
+            if area_ranges is None:
+                num_gts[0] += bbox.shape[0]
+            else:
+                gt_areas = (bbox[:, 2] - bbox[:, 0] + 1) * (
+                    bbox[:, 3] - bbox[:, 1] + 1)
+                for k, (min_area, max_area) in enumerate(area_ranges):
+                    num_gts[k] += np.sum((gt_areas >= min_area)
+                                         & (gt_areas < max_area))
+        # sort all det bboxes by score, also sort tp and fp
+        cls_dets = np.vstack(cls_dets)
+        num_dets = cls_dets.shape[0]
+        sort_inds = np.argsort(-cls_dets[:, -1])
+        tp = np.hstack(tp)[:, sort_inds]
+        fp = np.hstack(fp)[:, sort_inds]
+        # calculate recall and precision with tp and fp
+        return tp, fp
+
+
 def eval_map(det_results,
              annotations,
              scale_ranges=None,
@@ -307,6 +358,12 @@ def eval_map(det_results,
     area_ranges = ([(rg[0]**2, rg[1]**2) for rg in scale_ranges]
                    if scale_ranges is not None else None)
 
+    ### #TODO only for traffic light
+    drop_box = False
+    if drop_box:
+        for k in range(len(det_results)):
+            det_results[k] = drop_duplicate_box(det_results[k])
+    ###
     pool = Pool(nproc)
     eval_results = []
     for i in range(num_classes):

@@ -1,12 +1,14 @@
 from mmdet.core import eval_map, eval_recalls
 from .registry import DATASETS
 from .xml_style import XMLDataset
+#from .drop_fp import reduce_fp
 
 
 @DATASETS.register_module
 class TLDataset(XMLDataset):
 
-    CLASSES = ('RedLeft', 'Red', 'RedRight', 'GreenLeft', 'Green', 'GreenRight', 'Yellow', 'off')
+    #CLASSES = ('RedLeft', 'Red', 'RedRight', 'GreenLeft', 'Green', 'GreenRight', 'Yellow', 'off')
+    CLASSES = ('Red', 'Green', 'Yellow', 'off')
 
     def __init__(self, **kwargs):
         super(TLDataset, self).__init__(**kwargs)

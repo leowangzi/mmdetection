@@ -13,7 +13,8 @@ def voc_classes():
 
 
 def traffic_light_classes():
-    return ['RedLeft', 'Red', 'RedRight', 'GreenLeft', 'Green', 'GreenRight', 'Yellow', 'off']
+    return ['Red', 'Green', 'Yellow', 'off']
+    #return ['RedLeft', 'Red', 'RedRight', 'GreenLeft', 'Green', 'GreenRight', 'Yellow', 'off']
 
 
 def imagenet_det_classes():
